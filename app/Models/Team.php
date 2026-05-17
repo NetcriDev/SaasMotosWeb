@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Team extends Model
+{
+    use HasFactory;
+    protected $guarded = [];
+    public function members()
+    {
+        return $this->belongsToMany(User::class, 'team_user', 'team_id', 'user_id');
+    }
+    public function clients()
+    {
+        return $this->hasMany(Client::class);
+    }
+
+    public function branches()
+    {
+        return $this->hasMany(Branch::class);
+    }
+
+    public function motorcycles()
+    {
+        return $this->hasMany(Motorcycle::class);
+    }
+
+    public function workOrders()
+    {
+        return $this->hasMany(WorkOrder::class);
+    }
+
+    public function brands()
+    {
+        return $this->hasMany(Brand::class);
+    }
+
+    public function motorcycleModels()
+    {
+        return $this->hasMany(MotorcycleModel::class);
+    }
+
+    public function maintenanceTypes()
+    {
+        return $this->hasMany(MaintenanceType::class);
+    }
+}
