@@ -3,6 +3,9 @@
 namespace App\Filament\Resources\WorkOrders\Tables;
 
 use App\Enums\WorkOrderStatus;
+use App\Filament\Resources\Clients\ClientResource;
+use App\Filament\Resources\Motorcycles\MotorcycleResource;
+use App\Models\WorkOrder;
 use App\Support\Money;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -33,10 +36,20 @@ class WorkOrdersTable
                     ->searchable(),
                 TextColumn::make('client.name')
                     ->label('Cliente')
-                    ->searchable(),
+                    ->searchable()
+                    ->url(
+                        fn (WorkOrder $record): ?string => $record->client_id
+                            ? ClientResource::getUrl('edit', ['record' => $record->client_id])
+                            : null,
+                    ),
                 TextColumn::make('motorcycle.license_plate')
                     ->label('Moto')
-                    ->searchable(),
+                    ->searchable()
+                    ->url(
+                        fn (WorkOrder $record): ?string => $record->motorcycle_id
+                            ? MotorcycleResource::getUrl('edit', ['record' => $record->motorcycle_id])
+                            : null,
+                    ),
                 TextColumn::make('maintenanceType.name')
                     ->label('Tipo de servicio')
                     ->placeholder('—')
