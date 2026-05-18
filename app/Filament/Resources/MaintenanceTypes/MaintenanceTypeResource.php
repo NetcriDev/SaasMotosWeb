@@ -7,10 +7,12 @@ use App\Filament\Resources\MaintenanceTypes\Pages\EditMaintenanceType;
 use App\Filament\Resources\MaintenanceTypes\Pages\ListMaintenanceTypes;
 use App\Filament\Resources\MaintenanceTypes\Tables\MaintenanceTypesTable;
 use App\Models\MaintenanceType;
+use App\Support\Money;
 use BackedEnum;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
@@ -45,6 +47,21 @@ class MaintenanceTypeResource extends Resource
                 ->label('Descripción')
                 ->rows(3)
                 ->columnSpanFull(),
+            Grid::make(2)->schema([
+                TextInput::make('price')
+                    ->label('Precio')
+                    ->required()
+                    ->numeric()
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->default(0)
+                    ->prefix(Money::symbol()),
+                TextInput::make('estimated_duration_minutes')
+                    ->label('Duración estimada')
+                    ->numeric()
+                    ->minValue(1)
+                    ->suffix('min'),
+            ]),
         ]);
     }
 

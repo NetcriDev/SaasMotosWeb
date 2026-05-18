@@ -111,22 +111,32 @@ class DemoDataSeeder extends Seeder
             'aceite' => [
                 'name' => 'Cambio de aceite',
                 'description' => 'Aceite de motor y filtro.',
+                'price' => 49.90,
+                'estimated_duration_minutes' => 45,
             ],
             'revision' => [
                 'name' => 'Revisión general',
                 'description' => 'Inspección de seguridad y ajustes básicos.',
+                'price' => 79.00,
+                'estimated_duration_minutes' => 90,
             ],
             'frenos' => [
                 'name' => 'Mantenimiento de frenos',
                 'description' => 'Pastillas, líquido y revisión de discos.',
+                'price' => 119.50,
+                'estimated_duration_minutes' => 120,
             ],
             'neumaticos' => [
                 'name' => 'Cambio de neumáticos',
                 'description' => 'Montaje, equilibrado y presión.',
+                'price' => 149.00,
+                'estimated_duration_minutes' => 60,
             ],
             'electrico' => [
                 'name' => 'Reparación eléctrica',
                 'description' => 'Batería, alternador, luces y cableado.',
+                'price' => 95.00,
+                'estimated_duration_minutes' => 180,
             ],
         ];
 
@@ -134,7 +144,11 @@ class DemoDataSeeder extends Seeder
         foreach ($maintenanceData as $key => $data) {
             $maintenanceTypes[$key] = MaintenanceType::query()->updateOrCreate(
                 ['team_id' => $team->id, 'name' => $data['name']],
-                ['description' => $data['description']],
+                [
+                    'description' => $data['description'],
+                    'price' => $data['price'],
+                    'estimated_duration_minutes' => $data['estimated_duration_minutes'],
+                ],
             );
         }
 
@@ -331,6 +345,8 @@ class DemoDataSeeder extends Seeder
         ];
 
         foreach ($orders as $order) {
+            $maintenanceType = $maintenanceTypes[$order['maintenance']];
+
             WorkOrder::query()->updateOrCreate(
                 [
                     'team_id' => $team->id,
@@ -340,7 +356,8 @@ class DemoDataSeeder extends Seeder
                 [
                     'branch_id' => $branches[$order['branch']]->id,
                     'client_id' => $clients[$order['client']]->id,
-                    'maintenance_type_id' => $maintenanceTypes[$order['maintenance']]->id,
+                    'maintenance_type_id' => $maintenanceType->id,
+                    'estimated_total' => $maintenanceType->price,
                     'status' => $order['status'],
                     'completed_at' => $order['completed_at'],
                     'notes' => $order['notes'],
