@@ -31,4 +31,27 @@ enum WorkOrderStatus: string
 
         return $out;
     }
+
+    /**
+     * @return list<self>
+     */
+    public static function activeCases(): array
+    {
+        return [
+            self::Received,
+            self::InProgress,
+            self::Ready,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function activeValues(): array
+    {
+        return array_map(
+            fn (self $status): string => $status->value,
+            self::activeCases(),
+        );
+    }
 }

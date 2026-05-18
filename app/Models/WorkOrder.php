@@ -17,12 +17,21 @@ class WorkOrder extends Model
             'status' => WorkOrderStatus::class,
             'received_at' => 'datetime',
             'completed_at' => 'datetime',
+            'estimated_total' => 'decimal:2',
         ];
     }
 
     protected static function booted(): void
     {
         static::saving(function (WorkOrder $order): void {
+            if ($order->isDirty('maintenance_type_id') && $order->maintenance_type_id && ! $order->isDirty('estimated_total')) {
+                $maintenanceType = MaintenanceType::query()->find($order->maintenance_type_id);
+
+                if ($maintenanceType !== null) {
+                    $order->estimated_total = $maintenanceType->price;
+                }
+            }
+
             if ($order->motorcycle_id && $order->client_id) {
                 $motorcycle = Motorcycle::query()->find($order->motorcycle_id);
                 if ($motorcycle && (int) $motorcycle->client_id !== (int) $order->client_id) {

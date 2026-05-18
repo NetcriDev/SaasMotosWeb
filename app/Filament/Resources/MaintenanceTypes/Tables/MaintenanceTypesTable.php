@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MaintenanceTypes\Tables;
 
+use App\Support\Money;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -20,6 +21,15 @@ class MaintenanceTypesTable
                 TextColumn::make('description')
                     ->label('Descripción')
                     ->limit(40)
+                    ->toggleable(),
+                TextColumn::make('price')
+                    ->label('Precio')
+                    ->formatStateUsing(fn ($state): string => Money::format($state))
+                    ->sortable(),
+                TextColumn::make('estimated_duration_minutes')
+                    ->label('Duración')
+                    ->formatStateUsing(fn (?int $state): string => $state ? "{$state} min" : '—')
+                    ->sortable()
                     ->toggleable(),
                 TextColumn::make('created_at')
                     ->label('Creado')

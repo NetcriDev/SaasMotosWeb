@@ -10,6 +10,14 @@ class MaintenanceType extends Model
 {
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+            'estimated_duration_minutes' => 'integer',
+        ];
+    }
+
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
