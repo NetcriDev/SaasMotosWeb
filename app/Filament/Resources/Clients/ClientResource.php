@@ -5,16 +5,18 @@ namespace App\Filament\Resources\Clients;
 use App\Filament\Resources\Clients\Pages\CreateClient;
 use App\Filament\Resources\Clients\Pages\EditClient;
 use App\Filament\Resources\Clients\Pages\ListClients;
+use App\Filament\Resources\Clients\RelationManagers\MotorcyclesRelationManager;
+use App\Filament\Resources\Clients\RelationManagers\WorkOrdersRelationManager;
 use App\Filament\Resources\Clients\Tables\ClientsTable;
 use App\Models\Client;
 use BackedEnum;
 use Filament\Forms\Components\Select;
-use UnitEnum;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class ClientResource extends Resource
 {
@@ -32,7 +34,7 @@ class ClientResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $recordTitleAttribute = 'email';
+    protected static ?string $recordTitleAttribute = 'name';
 
     public static function form(Schema $schema): Schema
     {
@@ -62,7 +64,8 @@ class ClientResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            MotorcyclesRelationManager::class,
+            WorkOrdersRelationManager::class,
         ];
     }
 
