@@ -2,9 +2,8 @@
 
 namespace App\Filament\Pages\Tenancy;
 
-use App\Enums\TeamRole;
 use App\Models\Team;
-use App\Support\TenancyPermissions;
+use App\Support\ShieldBootstrap;
 use Filament\Forms\Components\TextInput;
 use Filament\Pages\Tenancy\RegisterTenant;
 use Filament\Schemas\Schema;
@@ -34,7 +33,7 @@ class RegisterTeam extends RegisterTenant
 
         $team->members()->attach($user);
 
-        TenancyPermissions::assignRole($user, TeamRole::Owner->value, $team);
+        ShieldBootstrap::assignSuperAdmin($user, $team);
 
         return $team;
     }

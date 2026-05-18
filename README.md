@@ -101,6 +101,15 @@ El seeder crea dos sucursales, clientes, motos, catálogos (marcas, modelos, tip
 | Clientes | Clientes por sucursal |
 | Motos | Vehículos registrados |
 | Órdenes de trabajo | Flujo de recepción y entrega en taller |
+| Roles (Shield) | `/admin/{taller}/shield/roles` — permisos por recurso del panel |
+| Invitaciones | Invitar miembros por correo; el rol debe existir en Shield (`admin`, `recepcion`, `mecanico`) |
+
+### Permisos (Filament Shield)
+
+- Multi-tenant: roles y asignaciones van por taller (`Team`).
+- El propietario del taller recibe `super_admin` al registrar el taller o con `php artisan team:assign-owner admin@taller.demo --team="Taller Demo Motos"`.
+- Tras instalar dependencias o nuevos recursos Filament: `php artisan shield:generate --all --panel=admin --relationships`.
+- Permiso custom para invitaciones: `ManageTeamInvitations` (asignar en el rol correspondiente).
 
 ## Estructura relevante
 

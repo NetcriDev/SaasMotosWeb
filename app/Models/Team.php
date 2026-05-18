@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Team extends Model
@@ -47,4 +48,11 @@ class Team extends Model
     {
         return $this->hasMany(MaintenanceType::class);
     }
+
+    /** @return HasMany<\App\Models\Role, self> */
+    public function roles(): HasMany
+    {
+        return $this->hasMany(\App\Models\Role::class);
+    }
+
 }

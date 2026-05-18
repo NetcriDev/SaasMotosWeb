@@ -59,4 +59,15 @@ final class TenancyPermissions
             $user->syncRoles([]);
         });
     }
+
+    public static function userCanManageInvitations(User $user, ?Team $team = null): bool
+    {
+        if ($team instanceof Team) {
+            return self::userHasPermission($user, 'ManageTeamInvitations', $team);
+        }
+
+        return $user->teams()
+            ->get()
+            ->contains(fn (Team $candidate): bool => self::userHasPermission($user, 'ManageTeamInvitations', $candidate));
+    }
 }

@@ -1,15 +1,24 @@
 <?php
 
 use App\Enums\TeamRole;
+use App\Models\Permission;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
 use App\Services\TeamInvitationService;
+use App\Support\ShieldBootstrap;
 use App\Support\TenancyPermissions;
-use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\Artisan;
 
 beforeEach(function (): void {
-    $this->seed(RolesAndPermissionsSeeder::class);
+    if (Permission::query()->doesntExist()) {
+        Artisan::call('shield:generate', [
+            '--all' => true,
+            '--panel' => 'admin',
+            '--relationships' => true,
+            '--no-interaction' => true,
+        ]);
+    }
 });
 
 it('invites and accepts a team member', function (): void {
@@ -18,7 +27,8 @@ it('invites and accepts a team member', function (): void {
     $invitee = User::factory()->create(['email' => 'mecanico@test.com']);
 
     $team->members()->attach($owner);
-    TenancyPermissions::assignRole($owner, TeamRole::Owner->value, $team);
+    ShieldBootstrap::assignSuperAdmin($owner, $team);
+    ShieldBootstrap::ensureInvitableRole($team, TeamRole::Mecanico->value);
 
     $invitation = app(TeamInvitationService::class)->invite(
         $team,

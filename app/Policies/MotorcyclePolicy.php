@@ -1,37 +1,75 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Motorcycle;
-use App\Models\User;
-use App\Policies\Concerns\ChecksTenantPermissions;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class MotorcyclePolicy
 {
-    use ChecksTenantPermissions;
-
-    public function viewAny(User $user): bool
+    use HandlesAuthorization;
+    
+    public function viewAny(AuthUser $authUser): bool
     {
-        return $this->can($user, 'view_motorcycle');
+        return $authUser->can('ViewAny:Motorcycle');
     }
 
-    public function view(User $user, Motorcycle $motorcycle): bool
+    public function view(AuthUser $authUser, Motorcycle $motorcycle): bool
     {
-        return $this->belongsToCurrentTeam($motorcycle) && $this->can($user, 'view_motorcycle');
+        return $authUser->can('View:Motorcycle');
     }
 
-    public function create(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return $this->can($user, 'manage_motorcycle');
+        return $authUser->can('Create:Motorcycle');
     }
 
-    public function update(User $user, Motorcycle $motorcycle): bool
+    public function update(AuthUser $authUser, Motorcycle $motorcycle): bool
     {
-        return $this->belongsToCurrentTeam($motorcycle) && $this->can($user, 'manage_motorcycle');
+        return $authUser->can('Update:Motorcycle');
     }
 
-    public function delete(User $user, Motorcycle $motorcycle): bool
+    public function delete(AuthUser $authUser, Motorcycle $motorcycle): bool
     {
-        return $this->belongsToCurrentTeam($motorcycle) && $this->can($user, 'manage_motorcycle');
+        return $authUser->can('Delete:Motorcycle');
     }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Motorcycle');
+    }
+
+    public function restore(AuthUser $authUser, Motorcycle $motorcycle): bool
+    {
+        return $authUser->can('Restore:Motorcycle');
+    }
+
+    public function forceDelete(AuthUser $authUser, Motorcycle $motorcycle): bool
+    {
+        return $authUser->can('ForceDelete:Motorcycle');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Motorcycle');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Motorcycle');
+    }
+
+    public function replicate(AuthUser $authUser, Motorcycle $motorcycle): bool
+    {
+        return $authUser->can('Replicate:Motorcycle');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Motorcycle');
+    }
+
 }

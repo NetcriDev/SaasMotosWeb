@@ -13,7 +13,7 @@ use App\Models\MotorcycleModel;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\WorkOrder;
-use App\Support\TenancyPermissions;
+use App\Support\ShieldBootstrap;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -37,7 +37,11 @@ class DemoDataSeeder extends Seeder
 
         $admin->teams()->syncWithoutDetaching([$team->id]);
 
-        TenancyPermissions::assignRole($admin, TeamRole::Owner->value, $team);
+        ShieldBootstrap::assignSuperAdmin($admin, $team);
+
+        foreach ([TeamRole::Admin, TeamRole::Recepcion, TeamRole::Mecanico] as $role) {
+            ShieldBootstrap::ensureInvitableRole($team, $role->value);
+        }
 
         $branches = $this->seedBranches($team);
         $catalogs = $this->seedCatalogs($team);
