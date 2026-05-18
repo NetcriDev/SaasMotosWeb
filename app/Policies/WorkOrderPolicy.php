@@ -1,37 +1,75 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
-use App\Models\User;
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\WorkOrder;
-use App\Policies\Concerns\ChecksTenantPermissions;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class WorkOrderPolicy
 {
-    use ChecksTenantPermissions;
-
-    public function viewAny(User $user): bool
+    use HandlesAuthorization;
+    
+    public function viewAny(AuthUser $authUser): bool
     {
-        return $this->can($user, 'view_work_order');
+        return $authUser->can('ViewAny:WorkOrder');
     }
 
-    public function view(User $user, WorkOrder $workOrder): bool
+    public function view(AuthUser $authUser, WorkOrder $workOrder): bool
     {
-        return $this->belongsToCurrentTeam($workOrder) && $this->can($user, 'view_work_order');
+        return $authUser->can('View:WorkOrder');
     }
 
-    public function create(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return $this->can($user, 'manage_work_order');
+        return $authUser->can('Create:WorkOrder');
     }
 
-    public function update(User $user, WorkOrder $workOrder): bool
+    public function update(AuthUser $authUser, WorkOrder $workOrder): bool
     {
-        return $this->belongsToCurrentTeam($workOrder) && $this->can($user, 'manage_work_order');
+        return $authUser->can('Update:WorkOrder');
     }
 
-    public function delete(User $user, WorkOrder $workOrder): bool
+    public function delete(AuthUser $authUser, WorkOrder $workOrder): bool
     {
-        return $this->belongsToCurrentTeam($workOrder) && $this->can($user, 'delete_work_order');
+        return $authUser->can('Delete:WorkOrder');
     }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:WorkOrder');
+    }
+
+    public function restore(AuthUser $authUser, WorkOrder $workOrder): bool
+    {
+        return $authUser->can('Restore:WorkOrder');
+    }
+
+    public function forceDelete(AuthUser $authUser, WorkOrder $workOrder): bool
+    {
+        return $authUser->can('ForceDelete:WorkOrder');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:WorkOrder');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:WorkOrder');
+    }
+
+    public function replicate(AuthUser $authUser, WorkOrder $workOrder): bool
+    {
+        return $authUser->can('Replicate:WorkOrder');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:WorkOrder');
+    }
+
 }
