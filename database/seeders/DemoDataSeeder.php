@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\TeamRole;
 use App\Enums\WorkOrderStatus;
 use App\Models\Branch;
 use App\Models\Brand;
@@ -12,6 +13,7 @@ use App\Models\MotorcycleModel;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Support\TenancyPermissions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -34,6 +36,8 @@ class DemoDataSeeder extends Seeder
         );
 
         $admin->teams()->syncWithoutDetaching([$team->id]);
+
+        TenancyPermissions::assignRole($admin, TeamRole::Owner->value, $team);
 
         $branches = $this->seedBranches($team);
         $catalogs = $this->seedCatalogs($team);
