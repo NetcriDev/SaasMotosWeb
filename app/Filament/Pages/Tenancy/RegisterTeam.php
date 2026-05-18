@@ -2,17 +2,18 @@
 
 namespace App\Filament\Pages\Tenancy;
 
+use App\Enums\TeamRole;
 use App\Models\Team;
+use App\Support\TenancyPermissions;
 use Filament\Forms\Components\TextInput;
 use Filament\Pages\Tenancy\RegisterTenant;
 use Filament\Schemas\Schema;
 
 class RegisterTeam extends RegisterTenant
 {
-
     public static function getLabel(): string
     {
-        return 'Register Team';
+        return 'Registrar taller';
     }
 
     public function form(Schema $schema): Schema
@@ -20,17 +21,21 @@ class RegisterTeam extends RegisterTenant
         return $schema
             ->schema([
                 TextInput::make('name')
+                    ->label('Nombre del taller')
                     ->required(),
             ]);
     }
 
-
-
     protected function handleRegistration(array $data): Team
     {
         $team = Team::create($data);
-        
-        $team->members()->attach(auth()->user());
+
+        $user = auth()->user();
+
+        $team->members()->attach($user);
+
+        TenancyPermissions::assignRole($user, TeamRole::Owner->value, $team);
+
         return $team;
     }
 }
