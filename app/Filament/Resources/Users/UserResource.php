@@ -5,9 +5,11 @@ namespace App\Filament\Resources\Users;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Models\Branch;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\ShieldBootstrap;
 use App\Support\TenancyPermissions;
 use BackedEnum;
 use Filament\Actions\EditAction;
@@ -32,9 +34,11 @@ class UserResource extends Resource
 
     protected static ?string $tenantOwnershipRelationshipName = 'teams';
 
-    protected static ?string $modelLabel = 'usuario';
+    protected static ?string $modelLabel = 'empleado';
 
-    protected static ?string $pluralModelLabel = 'usuarios';
+    protected static ?string $pluralModelLabel = 'empleados';
+
+    protected static ?string $navigationLabel = 'Empleados';
 
     protected static string|UnitEnum|null $navigationGroup = 'Equipo';
 
@@ -58,7 +62,7 @@ class UserResource extends Resource
                 ->unique(ignoreRecord: true)
                 ->maxLength(255),
             TextInput::make('password')
-                ->label('Contraseña')
+                ->label('Contrasena')
                 ->password()
                 ->revealable()
                 ->rule(Password::defaults())
@@ -68,6 +72,7 @@ class UserResource extends Resource
             Select::make('team_role')
                 ->label('Rol en este taller')
                 ->options(fn (): array => self::roleOptions())
+                ->default('recepcion')
                 ->required()
                 ->dehydrated(false)
                 ->afterStateHydrated(function (Select $component, ?User $record): void {
@@ -85,6 +90,22 @@ class UserResource extends Resource
                                 ->value('name'),
                         ),
                     );
+                }),
+            Select::make('team_branch_id')
+                ->label('Sucursal asignada')
+                ->options(fn (): array => self::branchOptions())
+                ->searchable()
+                ->preload()
+                ->required()
+                ->dehydrated(false)
+                ->afterStateHydrated(function (Select $component, ?User $record): void {
+                    $team = Filament::getTenant();
+
+                    if (! $record instanceof User || ! $team instanceof Team) {
+                        return;
+                    }
+
+                    $component->state(self::branchIdForTeam($record, $team));
                 }),
         ]);
     }
@@ -105,6 +126,10 @@ class UserResource extends Resource
                     ->label('Rol')
                     ->state(fn (User $record): ?string => self::currentRoleLabel($record))
                     ->badge(),
+                TextColumn::make('team_branch')
+                    ->label('Sucursal')
+                    ->state(fn (User $record): ?string => self::currentBranchLabel($record))
+                    ->placeholder('Sin asignar'),
                 TextColumn::make('created_at')
                     ->label('Creado')
                     ->dateTime()
@@ -136,6 +161,8 @@ class UserResource extends Resource
             return;
         }
 
+        ShieldBootstrap::ensureDefaultTeamRoles($team);
+
         Role::query()->firstOrCreate([
             'name' => $roleName,
             'guard_name' => 'web',
@@ -143,6 +170,32 @@ class UserResource extends Resource
         ]);
 
         TenancyPermissions::assignRole($user, $roleName, $team);
+    }
+
+    public static function syncTeamBranch(User $user, int|string|null $branchId): void
+    {
+        $team = Filament::getTenant();
+
+        if (! $team instanceof Team) {
+            return;
+        }
+
+        $branchId = filled($branchId) ? (int) $branchId : null;
+
+        if ($branchId !== null) {
+            $exists = Branch::query()
+                ->whereKey($branchId)
+                ->where('team_id', $team->id)
+                ->exists();
+
+            if (! $exists) {
+                return;
+            }
+        }
+
+        $user->teams()->syncWithoutDetaching([
+            $team->id => ['branch_id' => $branchId],
+        ]);
     }
 
     public static function roleOptions(): array
@@ -153,11 +206,28 @@ class UserResource extends Resource
             return [];
         }
 
+        ShieldBootstrap::ensureDefaultTeamRoles($team);
+
         return Role::query()
             ->where('team_id', $team->id)
+            ->whereIn('name', ['supervisor', 'recepcion', 'mecanico'])
             ->orderBy('name')
             ->pluck('name', 'name')
             ->map(fn (string $role): string => self::roleLabel($role))
+            ->all();
+    }
+
+    public static function branchOptions(): array
+    {
+        $team = Filament::getTenant();
+
+        if (! $team instanceof Team) {
+            return [];
+        }
+
+        return $team->branches()
+            ->orderBy('name')
+            ->pluck('name', 'id')
             ->all();
     }
 
@@ -179,13 +249,44 @@ class UserResource extends Resource
         return $role ? self::roleLabel($role) : null;
     }
 
+    private static function currentBranchLabel(User $user): ?string
+    {
+        $team = Filament::getTenant();
+
+        if (! $team instanceof Team) {
+            return null;
+        }
+
+        $branchId = self::branchIdForTeam($user, $team);
+
+        if ($branchId === null) {
+            return null;
+        }
+
+        return Branch::query()
+            ->whereKey($branchId)
+            ->where('team_id', $team->id)
+            ->value('name');
+    }
+
+    private static function branchIdForTeam(User $user, Team $team): ?int
+    {
+        $pivot = $user->teams()
+            ->whereKey($team->id)
+            ->first()
+            ?->pivot;
+
+        return filled($pivot?->branch_id) ? (int) $pivot->branch_id : null;
+    }
+
     private static function roleLabel(string $role): string
     {
         return match ($role) {
-            'super_admin' => 'Supervisor / Super admin',
+            'supervisor' => 'Supervisor',
+            'super_admin' => 'Super admin del sistema',
             'admin' => 'Administrador',
-            'recepcion' => 'Recepción',
-            'mecanico' => 'Mecánico',
+            'recepcion' => 'Recepcionista',
+            'mecanico' => 'Mecanico',
             'panel_user' => 'Usuario del panel',
             default => $role,
         };

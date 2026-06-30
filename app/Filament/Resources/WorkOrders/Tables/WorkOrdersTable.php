@@ -54,8 +54,13 @@ class WorkOrdersTable
                     ->label('Tipo de servicio')
                     ->placeholder('—')
                     ->toggleable(),
+                TextColumn::make('mechanic.name')
+                    ->label('Mecanico')
+                    ->searchable()
+                    ->placeholder('Sin asignar')
+                    ->toggleable(),
                 TextColumn::make('estimated_total')
-                    ->label('Total est.')
+                    ->label('Total a cobrar')
                     ->formatStateUsing(fn ($state): string => Money::format($state))
                     ->sortable(),
                 TextColumn::make('status')

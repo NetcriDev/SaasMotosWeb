@@ -19,6 +19,10 @@ class EditUser extends EditRecord
         if (is_string($role) && $this->record instanceof User) {
             UserResource::syncTeamRole($this->record, $role);
         }
+
+        if ($this->record instanceof User) {
+            UserResource::syncTeamBranch($this->record, $this->form->getRawState()['team_branch_id'] ?? null);
+        }
     }
 
     protected function getHeaderActions(): array

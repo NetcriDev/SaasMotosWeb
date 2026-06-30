@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\MotorcycleSystem;
 use App\Enums\WorkOrderStatus;
 use App\Models\Branch;
 use App\Models\Brand;
@@ -10,6 +11,7 @@ use App\Models\MotorcycleModel;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Support\DefaultWorkshopCatalog;
 use App\Support\ShieldBootstrap;
 use App\Support\TenancyPermissions;
 use Laravel\Sanctum\Sanctum;
@@ -24,6 +26,7 @@ function workshopApiFixture(): array
     $team = Team::query()->create(['name' => 'Taller API']);
     $otherTeam = Team::query()->create(['name' => 'Otro Taller']);
     $team->members()->attach([$user->id, $mechanic->id]);
+    DefaultWorkshopCatalog::ensureForTeam($team);
     ShieldBootstrap::ensureInvitableRole($team, 'recepcion');
     ShieldBootstrap::ensureInvitableRole($team, 'mecanico');
     TenancyPermissions::assignRole($user, 'recepcion', $team);
@@ -76,7 +79,10 @@ function workshopApiFixture(): array
         'branch_id' => $branch->id,
         'client_id' => $client->id,
         'motorcycle_id' => $motorcycle->id,
+        'mechanic_id' => $mechanic->id,
         'maintenance_type_id' => $maintenanceType->id,
+        'intake_reason' => 'Falla al encender.',
+        'affected_systems' => [MotorcycleSystem::Electrical->value],
         'status' => WorkOrderStatus::Received,
         'received_at' => now(),
     ]);
@@ -131,13 +137,33 @@ it('creates clients motorcycles and work orders for the authenticated team', fun
         'branch_id' => $fixture['branch']->id,
         'client_id' => $clientId,
         'motorcycle_id' => $motorcycleId,
+        'mechanic_id' => $fixture['mechanic']->id,
         'maintenance_type_id' => $fixture['maintenanceType']->id,
+        'intake_reason' => 'Revision por kilometraje y luces delanteras.',
+        'affected_systems' => [MotorcycleSystem::Engine->value, MotorcycleSystem::Electrical->value],
+        'activities' => [
+            [
+                'system' => MotorcycleSystem::Engine->value,
+                'description' => 'Revision incluida en mantenimiento',
+                'service_cost' => 0,
+                'is_billable' => false,
+            ],
+            [
+                'system' => MotorcycleSystem::Electrical->value,
+                'description' => 'Cambio de luces',
+                'service_cost' => 5,
+                'is_billable' => true,
+            ],
+        ],
         'received_at' => now()->toISOString(),
         'notes' => 'Revision inicial',
     ])
         ->assertCreated()
         ->assertJsonPath('data.status', WorkOrderStatus::Received->value)
-        ->assertJsonPath('data.estimated_total', '49.90');
+        ->assertJsonPath('data.mechanic_id', $fixture['mechanic']->id)
+        ->assertJsonPath('data.affected_systems.1', MotorcycleSystem::Electrical->value)
+        ->assertJsonPath('data.activities.1.description', 'Cambio de luces')
+        ->assertJsonPath('data.estimated_total', '54.90');
 });
 
 it('filters work orders and exposes dashboard metrics', function (): void {

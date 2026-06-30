@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum TeamRole: string
 {
+    case Supervisor = 'supervisor';
     case Owner = 'owner';
     case Admin = 'admin';
     case Recepcion = 'recepcion';
@@ -12,10 +13,11 @@ enum TeamRole: string
     public function label(): string
     {
         return match ($this) {
+            self::Supervisor => 'Supervisor',
             self::Owner => 'Propietario',
             self::Admin => 'Administrador',
-            self::Recepcion => 'Recepción',
-            self::Mecanico => 'Mecánico',
+            self::Recepcion => 'Recepcionista',
+            self::Mecanico => 'Mecanico',
         };
     }
 
@@ -34,14 +36,14 @@ enum TeamRole: string
     }
 
     /**
-     * Roles that can be assigned via invitation (not owner).
+     * Roles that can be assigned via invitation.
      *
      * @return array<string, string>
      */
     public static function invitableOptions(): array
     {
         return collect(self::cases())
-            ->reject(fn (self $role): bool => $role === self::Owner)
+            ->reject(fn (self $role): bool => in_array($role, [self::Owner, self::Supervisor], true))
             ->mapWithKeys(fn (self $role): array => [$role->value => $role->label()])
             ->all();
     }

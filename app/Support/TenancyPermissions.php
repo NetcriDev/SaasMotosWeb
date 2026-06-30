@@ -35,6 +35,20 @@ final class TenancyPermissions
         }
     }
 
+    public static function withoutTeam(callable $callback): mixed
+    {
+        $registrar = app(PermissionRegistrar::class);
+        $previousTeamId = $registrar->getPermissionsTeamId();
+
+        self::setTeam(null);
+
+        try {
+            return $callback();
+        } finally {
+            $registrar->setPermissionsTeamId($previousTeamId);
+        }
+    }
+
     public static function userHasPermission(User $user, string $permission, ?Team $team = null): bool
     {
         $team ??= Filament::getTenant();
