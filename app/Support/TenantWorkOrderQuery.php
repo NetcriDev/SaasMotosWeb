@@ -16,6 +16,13 @@ final class TenantWorkOrderQuery
             return WorkOrder::query()->whereRaw('0 = 1');
         }
 
-        return WorkOrder::query()->whereBelongsTo($tenant, 'team');
+        $query = WorkOrder::query()->whereBelongsTo($tenant, 'team');
+        $user = auth()->user();
+
+        if ($user !== null && TenancyPermissions::withTeam($tenant, fn (): bool => $user->hasRole('mecanico'))) {
+            $query->where('mechanic_id', $user->getKey());
+        }
+
+        return $query;
     }
 }

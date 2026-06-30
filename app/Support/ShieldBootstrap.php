@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\TeamRole;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Team;
@@ -9,35 +10,105 @@ use App\Models\User;
 
 final class ShieldBootstrap
 {
+    public static function assignSupervisor(User $user, Team $team): void
+    {
+        self::ensureDefaultTeamRoles($team);
+
+        TenancyPermissions::assignRole($user, TeamRole::Supervisor->value, $team);
+    }
+
     public static function assignSuperAdmin(User $user, Team $team): void
     {
-        $roleName = (string) config('filament-shield.super_admin.name', 'super_admin');
+        self::assignSupervisor($user, $team);
+    }
 
-        TenancyPermissions::withTeam($team, function () use ($user, $team, $roleName): void {
-            $role = Role::query()->firstOrCreate(
-                [
-                    'name' => $roleName,
-                    'guard_name' => 'web',
-                    'team_id' => $team->getKey(),
-                ],
-            );
+    public static function ensureDefaultTeamRoles(Team $team): void
+    {
+        TenancyPermissions::withTeam($team, function () use ($team): void {
+            self::role($team, TeamRole::Supervisor->value)
+                ->syncPermissions(Permission::query()->pluck('id'));
 
-            $role->syncPermissions(Permission::query()->pluck('id'));
+            self::role($team, TeamRole::Recepcion->value)
+                ->syncPermissions(self::permissions([
+                    'ViewAny:Branch',
+                    'View:Branch',
+                    'ViewAny:Brand',
+                    'View:Brand',
+                    'ViewAny:Client',
+                    'View:Client',
+                    'Create:Client',
+                    'Update:Client',
+                    'ViewAny:MaintenanceType',
+                    'View:MaintenanceType',
+                    'ViewAny:Motorcycle',
+                    'View:Motorcycle',
+                    'Create:Motorcycle',
+                    'Update:Motorcycle',
+                    'ViewAny:MotorcycleModel',
+                    'View:MotorcycleModel',
+                    'ViewAny:WorkOrder',
+                    'View:WorkOrder',
+                    'Create:WorkOrder',
+                    'Update:WorkOrder',
+                ]));
 
-            $user->syncRoles([$role]);
+            self::role($team, TeamRole::Mecanico->value)
+                ->syncPermissions(self::permissions([
+                    'ViewAny:Branch',
+                    'View:Branch',
+                    'ViewAny:Brand',
+                    'View:Brand',
+                    'ViewAny:Client',
+                    'View:Client',
+                    'ViewAny:MaintenanceType',
+                    'View:MaintenanceType',
+                    'ViewAny:Motorcycle',
+                    'View:Motorcycle',
+                    'ViewAny:MotorcycleModel',
+                    'View:MotorcycleModel',
+                    'ViewAny:WorkOrder',
+                    'View:WorkOrder',
+                    'Create:WorkOrder',
+                    'Update:WorkOrder',
+                ]));
         });
+    }
+
+    public static function assignSystemSuperAdmin(User $user): void
+    {
+        $user->forceFill(['is_system_admin' => true])->save();
+    }
+
+    public static function isSystemSuperAdmin(User $user): bool
+    {
+        return (bool) $user->is_system_admin;
     }
 
     public static function ensureInvitableRole(Team $team, string $roleName): void
     {
         TenancyPermissions::withTeam($team, function () use ($team, $roleName): void {
-            Role::query()->firstOrCreate(
-                [
-                    'name' => $roleName,
-                    'guard_name' => 'web',
-                    'team_id' => $team->getKey(),
-                ],
-            );
+            self::role($team, $roleName);
         });
+    }
+
+    private static function role(Team $team, string $roleName): Role
+    {
+        return Role::query()->firstOrCreate(
+            [
+                'name' => $roleName,
+                'guard_name' => 'web',
+                'team_id' => $team->getKey(),
+            ],
+        );
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private static function permissions(array $names)
+    {
+        return Permission::query()
+            ->whereIn('name', $names)
+            ->get();
     }
 }

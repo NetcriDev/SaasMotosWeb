@@ -2,18 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Team extends Model
 {
     use HasFactory;
+
     protected $guarded = [];
+
     public function members()
     {
-        return $this->belongsToMany(User::class, 'team_user', 'team_id', 'user_id');
+        return $this->belongsToMany(User::class, 'team_user', 'team_id', 'user_id')
+            ->withPivot('branch_id')
+            ->withTimestamps();
     }
+
     public function clients()
     {
         return $this->hasMany(Client::class);
@@ -49,10 +54,14 @@ class Team extends Model
         return $this->hasMany(MaintenanceType::class);
     }
 
-    /** @return HasMany<\App\Models\Role, self> */
-    public function roles(): HasMany
+    public function motorcycleSystems()
     {
-        return $this->hasMany(\App\Models\Role::class);
+        return $this->hasMany(MotorcycleSystem::class);
     }
 
+    /** @return HasMany<Role, self> */
+    public function roles(): HasMany
+    {
+        return $this->hasMany(Role::class);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\MotorcycleSystem;
 use App\Enums\TeamRole;
 use App\Enums\WorkOrderStatus;
 use App\Models\Branch;
@@ -13,7 +14,9 @@ use App\Models\MotorcycleModel;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Support\DefaultWorkshopCatalog;
 use App\Support\ShieldBootstrap;
+use App\Support\TenancyPermissions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -37,17 +40,42 @@ class DemoDataSeeder extends Seeder
 
         $admin->teams()->syncWithoutDetaching([$team->id]);
 
-        ShieldBootstrap::assignSuperAdmin($admin, $team);
+        ShieldBootstrap::assignSystemSuperAdmin($admin);
+        ShieldBootstrap::assignSupervisor($admin, $team);
 
-        foreach ([TeamRole::Admin, TeamRole::Recepcion, TeamRole::Mecanico] as $role) {
-            ShieldBootstrap::ensureInvitableRole($team, $role->value);
-        }
+        $receptionist = User::query()->updateOrCreate(
+            ['email' => 'recepcion@taller.demo'],
+            [
+                'name' => 'Recepcion Demo',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ],
+        );
+
+        $mechanic = User::query()->updateOrCreate(
+            ['email' => 'mecanico@taller.demo'],
+            [
+                'name' => 'Mecanico Demo',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ],
+        );
+
+        $team->members()->syncWithoutDetaching([$receptionist->id, $mechanic->id]);
+        TenancyPermissions::assignRole($receptionist, TeamRole::Recepcion->value, $team);
+        TenancyPermissions::assignRole($mechanic, TeamRole::Mecanico->value, $team);
+        DefaultWorkshopCatalog::ensureForTeam($team);
 
         $branches = $this->seedBranches($team);
+        $this->assignTeamBranches($team, $branches, [
+            $admin->id => 'centro',
+            $receptionist->id => 'centro',
+            $mechanic->id => 'norte',
+        ]);
         $catalogs = $this->seedCatalogs($team);
         $clients = $this->seedClients($team, $branches);
         $motorcycles = $this->seedMotorcycles($team, $branches, $clients, $catalogs);
-        $this->seedWorkOrders($team, $branches, $clients, $motorcycles, $catalogs['maintenanceTypes']);
+        $this->seedWorkOrders($team, $branches, $clients, $motorcycles, $catalogs['maintenanceTypes'], $mechanic);
     }
 
     /**
@@ -72,6 +100,23 @@ class DemoDataSeeder extends Seeder
         );
 
         return ['centro' => $centro, 'norte' => $norte];
+    }
+
+    /**
+     * @param  array{centro: Branch, norte: Branch}  $branches
+     * @param  array<int, string>  $assignments
+     */
+    private function assignTeamBranches(Team $team, array $branches, array $assignments): void
+    {
+        foreach ($assignments as $userId => $branchKey) {
+            if (! isset($branches[$branchKey])) {
+                continue;
+            }
+
+            $team->members()->syncWithoutDetaching([
+                $userId => ['branch_id' => $branches[$branchKey]->id],
+            ]);
+        }
     }
 
     /**
@@ -298,6 +343,7 @@ class DemoDataSeeder extends Seeder
         array $clients,
         array $motorcycles,
         array $maintenanceTypes,
+        User $mechanic,
     ): void {
         $orders = [
             [
@@ -355,7 +401,7 @@ class DemoDataSeeder extends Seeder
         foreach ($orders as $order) {
             $maintenanceType = $maintenanceTypes[$order['maintenance']];
 
-            WorkOrder::query()->updateOrCreate(
+            $workOrder = WorkOrder::query()->updateOrCreate(
                 [
                     'team_id' => $team->id,
                     'motorcycle_id' => $motorcycles[$order['motorcycle']]->id,
@@ -365,12 +411,71 @@ class DemoDataSeeder extends Seeder
                     'branch_id' => $branches[$order['branch']]->id,
                     'client_id' => $clients[$order['client']]->id,
                     'maintenance_type_id' => $maintenanceType->id,
+                    'mechanic_id' => $mechanic->id,
                     'estimated_total' => $maintenanceType->price,
+                    'intake_reason' => $this->intakeReason($order['maintenance']),
+                    'affected_systems' => $this->affectedSystems($order['maintenance']),
                     'status' => $order['status'],
                     'completed_at' => $order['completed_at'],
                     'notes' => $order['notes'],
                 ],
             );
+
+            $workOrder->activities()->delete();
+            $workOrder->activities()->createMany($this->activities($order['maintenance']));
+            $workOrder->recalculateEstimatedTotal();
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function affectedSystems(string $maintenance): array
+    {
+        return match ($maintenance) {
+            'aceite', 'revision' => [MotorcycleSystem::Engine->value, MotorcycleSystem::General->value],
+            'frenos' => [MotorcycleSystem::Brakes->value],
+            'neumaticos' => [MotorcycleSystem::Tires->value],
+            'electrico' => [MotorcycleSystem::Electrical->value],
+            default => [MotorcycleSystem::General->value],
+        };
+    }
+
+    private function intakeReason(string $maintenance): string
+    {
+        return match ($maintenance) {
+            'aceite' => 'Revision por kilometraje y cambio de aceite.',
+            'revision' => 'Mantenimiento programado por kilometraje.',
+            'frenos' => 'Ruido o baja respuesta en sistema de frenos.',
+            'neumaticos' => 'Cambio de neumaticos solicitado por desgaste.',
+            'electrico' => 'Fallo intermitente en arranque o luces.',
+            default => 'Ingreso para revision general.',
+        };
+    }
+
+    /**
+     * @return list<array{system: string, description: string, service_cost: float|int, is_billable: bool}>
+     */
+    private function activities(string $maintenance): array
+    {
+        return match ($maintenance) {
+            'aceite' => [
+                ['system' => MotorcycleSystem::Engine->value, 'description' => 'Cambio de aceite', 'service_cost' => 0, 'is_billable' => false],
+                ['system' => MotorcycleSystem::General->value, 'description' => 'Revision de niveles', 'service_cost' => 10, 'is_billable' => true],
+            ],
+            'revision' => [
+                ['system' => MotorcycleSystem::General->value, 'description' => 'Revision incluida en plan', 'service_cost' => 0, 'is_billable' => false],
+            ],
+            'frenos' => [
+                ['system' => MotorcycleSystem::Brakes->value, 'description' => 'Diagnostico de frenos', 'service_cost' => 15, 'is_billable' => true],
+            ],
+            'neumaticos' => [
+                ['system' => MotorcycleSystem::Tires->value, 'description' => 'Montaje y balanceo', 'service_cost' => 20, 'is_billable' => true],
+            ],
+            'electrico' => [
+                ['system' => MotorcycleSystem::Electrical->value, 'description' => 'Revision de sistema electrico', 'service_cost' => 30, 'is_billable' => true],
+            ],
+            default => [],
+        };
     }
 }

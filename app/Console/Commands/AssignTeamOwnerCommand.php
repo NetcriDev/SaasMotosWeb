@@ -13,7 +13,7 @@ class AssignTeamOwnerCommand extends Command
                             {email? : Correo del usuario}
                             {--team= : ID o nombre del taller}';
 
-    protected $description = 'Asigna super_admin de Shield a un usuario en un taller';
+    protected $description = 'Asigna rol supervisor a un usuario en un taller';
 
     public function handle(): int
     {
@@ -45,9 +45,9 @@ class AssignTeamOwnerCommand extends Command
         }
 
         $user->teams()->syncWithoutDetaching([$team->getKey()]);
-        ShieldBootstrap::assignSuperAdmin($user, $team);
+        ShieldBootstrap::assignSupervisor($user, $team);
 
-        $this->info("Usuario [{$email}] es super_admin de [{$team->name}].");
+        $this->info("Usuario [{$email}] es supervisor de [{$team->name}].");
 
         return self::SUCCESS;
     }

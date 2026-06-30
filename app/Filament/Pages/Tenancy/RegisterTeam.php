@@ -3,6 +3,7 @@
 namespace App\Filament\Pages\Tenancy;
 
 use App\Models\Team;
+use App\Support\DefaultWorkshopCatalog;
 use App\Support\ShieldBootstrap;
 use Filament\Forms\Components\TextInput;
 use Filament\Pages\Tenancy\RegisterTenant;
@@ -33,7 +34,8 @@ class RegisterTeam extends RegisterTenant
 
         $team->members()->attach($user);
 
-        ShieldBootstrap::assignSuperAdmin($user, $team);
+        ShieldBootstrap::assignSupervisor($user, $team);
+        DefaultWorkshopCatalog::ensureForTeam($team);
 
         return $team;
     }
