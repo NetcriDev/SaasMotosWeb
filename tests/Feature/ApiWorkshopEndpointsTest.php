@@ -5,6 +5,7 @@ use App\Enums\WorkOrderStatus;
 use App\Models\Branch;
 use App\Models\Brand;
 use App\Models\Client;
+use App\Models\InventoryProduct;
 use App\Models\MaintenanceType;
 use App\Models\Motorcycle;
 use App\Models\MotorcycleModel;
@@ -199,4 +200,35 @@ it('exposes mechanics for the mobile app', function (): void {
         ->assertJsonPath('data.0.id', $fixture['mechanic']->id)
         ->assertJsonPath('data.0.name', 'Carlos Mecanico')
         ->assertJsonPath('data.0.roles.0', 'mecanico');
+});
+
+it('discounts branch stock when a product is consumed in a work order', function (): void {
+    $fixture = workshopApiFixture();
+
+    $product = InventoryProduct::query()->create([
+        'team_id' => $fixture['team']->id,
+        'sku' => 'FOCO-H4',
+        'name' => 'Foco delantero H4',
+        'category' => 'Electricos',
+        'unit' => 'unidad',
+        'sale_price' => 5,
+        'is_active' => true,
+    ]);
+
+    $stock = $product->stocks()->create([
+        'branch_id' => $fixture['branch']->id,
+        'quantity' => 3,
+        'min_quantity' => 1,
+    ]);
+
+    $fixture['order']->products()->create([
+        'inventory_product_id' => $product->id,
+        'branch_id' => $fixture['branch']->id,
+        'quantity' => 2,
+        'unit_price' => 5,
+        'is_billable' => true,
+    ]);
+
+    expect($stock->refresh()->quantity)->toBe('1.00')
+        ->and($fixture['order']->refresh()->estimated_total)->toBe('59.90');
 });

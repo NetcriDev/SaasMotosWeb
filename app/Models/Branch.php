@@ -29,4 +29,9 @@ class Branch extends Model
     {
         return $this->hasMany(WorkOrder::class);
     }
+
+    public function inventoryStocks(): HasMany
+    {
+        return $this->hasMany(InventoryStock::class);
+    }
 }

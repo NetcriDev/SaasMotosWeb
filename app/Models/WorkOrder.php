@@ -105,15 +105,23 @@ class WorkOrder extends Model
         return $this->hasMany(WorkOrderActivity::class);
     }
 
+    public function products(): HasMany
+    {
+        return $this->hasMany(WorkOrderProduct::class);
+    }
+
     public function recalculateEstimatedTotal(): void
     {
         $base = (float) ($this->maintenanceType?->price ?? 0);
         $activitiesTotal = (float) $this->activities()
             ->where('is_billable', true)
             ->sum('service_cost');
+        $productsTotal = (float) $this->products()
+            ->where('is_billable', true)
+            ->sum('line_total');
 
         $this->forceFill([
-            'estimated_total' => $base + $activitiesTotal,
+            'estimated_total' => $base + $activitiesTotal + $productsTotal,
         ])->saveQuietly();
     }
 }

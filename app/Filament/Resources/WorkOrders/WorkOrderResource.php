@@ -8,6 +8,7 @@ use App\Filament\Resources\WorkOrders\Pages\EditWorkOrder;
 use App\Filament\Resources\WorkOrders\Pages\ListWorkOrders;
 use App\Filament\Resources\WorkOrders\Tables\WorkOrdersTable;
 use App\Models\Client;
+use App\Models\InventoryProduct;
 use App\Models\MaintenanceType;
 use App\Models\Motorcycle;
 use App\Models\User;
@@ -19,6 +20,7 @@ use App\Support\TenantWorkOrderQuery;
 use BackedEnum;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -181,7 +183,7 @@ class WorkOrderResource extends Resource
                         ->live()
                         ->afterStateUpdated(fn (Get $get, Set $set): mixed => $set(
                             'estimated_total',
-                            self::calculateEstimatedTotal($get('maintenance_type_id'), $get('activities')),
+                            self::calculateEstimatedTotal($get('maintenance_type_id'), $get('activities'), $get('products')),
                         )),
                     Select::make('affected_systems')
                         ->label('Sistemas intervenidos')
@@ -224,7 +226,7 @@ class WorkOrderResource extends Resource
                                 ->live()
                                 ->afterStateUpdated(fn (Get $get, Set $set): mixed => $set(
                                     '../../estimated_total',
-                                    self::calculateEstimatedTotal($get('../../maintenance_type_id'), $get('../../activities')),
+                                    self::calculateEstimatedTotal($get('../../maintenance_type_id'), $get('../../activities'), $get('../../products')),
                                 )),
                             Toggle::make('is_billable')
                                 ->label('Cobrar')
@@ -232,7 +234,7 @@ class WorkOrderResource extends Resource
                                 ->live()
                                 ->afterStateUpdated(fn (Get $get, Set $set): mixed => $set(
                                     '../../estimated_total',
-                                    self::calculateEstimatedTotal($get('../../maintenance_type_id'), $get('../../activities')),
+                                    self::calculateEstimatedTotal($get('../../maintenance_type_id'), $get('../../activities'), $get('../../products')),
                                 )),
                             Textarea::make('notes')
                                 ->label('Notas')
@@ -246,7 +248,81 @@ class WorkOrderResource extends Resource
                         ->live()
                         ->afterStateUpdated(fn (Get $get, Set $set): mixed => $set(
                             'estimated_total',
-                            self::calculateEstimatedTotal($get('maintenance_type_id'), $get('activities')),
+                            self::calculateEstimatedTotal($get('maintenance_type_id'), $get('activities'), $get('products')),
+                        )),
+                ])
+                ->columnSpanFull(),
+
+            Section::make('Productos utilizados')
+                ->schema([
+                    Repeater::make('products')
+                        ->label('Productos / repuestos')
+                        ->relationship()
+                        ->schema([
+                            Hidden::make('branch_id')
+                                ->default(fn (Get $get): mixed => $get('../../branch_id')),
+                            Select::make('inventory_product_id')
+                                ->label('Producto')
+                                ->options(fn (Get $get): array => self::productOptionsForBranch($get('../../branch_id')))
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
+                                    $product = filled($state) ? InventoryProduct::query()->find($state) : null;
+
+                                    $set('unit_price', $product?->sale_price ?? 0);
+                                    $set('branch_id', $get('../../branch_id'));
+                                    $set(
+                                        '../../estimated_total',
+                                        self::calculateEstimatedTotal($get('../../maintenance_type_id'), $get('../../activities'), $get('../../products')),
+                                    );
+                                }),
+                            TextInput::make('quantity')
+                                ->label('Cantidad')
+                                ->numeric()
+                                ->minValue(0.01)
+                                ->step(0.01)
+                                ->default(1)
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(fn (Get $get, Set $set): mixed => $set(
+                                    '../../estimated_total',
+                                    self::calculateEstimatedTotal($get('../../maintenance_type_id'), $get('../../activities'), $get('../../products')),
+                                )),
+                            TextInput::make('unit_price')
+                                ->label('Precio unitario')
+                                ->numeric()
+                                ->minValue(0)
+                                ->step(0.01)
+                                ->default(0)
+                                ->prefix(Money::symbol())
+                                ->live()
+                                ->afterStateUpdated(fn (Get $get, Set $set): mixed => $set(
+                                    '../../estimated_total',
+                                    self::calculateEstimatedTotal($get('../../maintenance_type_id'), $get('../../activities'), $get('../../products')),
+                                )),
+                            Toggle::make('is_billable')
+                                ->label('Cobrar')
+                                ->default(true)
+                                ->live()
+                                ->afterStateUpdated(fn (Get $get, Set $set): mixed => $set(
+                                    '../../estimated_total',
+                                    self::calculateEstimatedTotal($get('../../maintenance_type_id'), $get('../../activities'), $get('../../products')),
+                                )),
+                            Textarea::make('notes')
+                                ->label('Notas')
+                                ->rows(2)
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(4)
+                        ->defaultItems(0)
+                        ->addActionLabel('Agregar producto')
+                        ->reorderable(false)
+                        ->live()
+                        ->afterStateUpdated(fn (Get $get, Set $set): mixed => $set(
+                            'estimated_total',
+                            self::calculateEstimatedTotal($get('maintenance_type_id'), $get('activities'), $get('products')),
                         )),
                 ])
                 ->columnSpanFull(),
@@ -467,7 +543,33 @@ class WorkOrderResource extends Resource
         return filled($pivot?->branch_id) ? (int) $pivot->branch_id : null;
     }
 
-    private static function calculateEstimatedTotal(mixed $maintenanceTypeId, mixed $activities): float
+    private static function productOptionsForBranch(mixed $branchId): array
+    {
+        if (blank($branchId)) {
+            return [];
+        }
+
+        return InventoryProduct::query()
+            ->where('team_id', Filament::getTenant()?->getKey())
+            ->where('is_active', true)
+            ->whereHas('stocks', fn (Builder $query): Builder => $query
+                ->where('branch_id', $branchId)
+                ->where('quantity', '>', 0))
+            ->with(['stocks' => fn ($query) => $query->where('branch_id', $branchId)])
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn (InventoryProduct $product): array => [
+                $product->getKey() => sprintf(
+                    '%s - stock %s - %s',
+                    $product->name,
+                    $product->stocks->first()?->quantity ?? '0.00',
+                    Money::format($product->sale_price),
+                ),
+            ])
+            ->all();
+    }
+
+    private static function calculateEstimatedTotal(mixed $maintenanceTypeId, mixed $activities, mixed $products = []): float
     {
         $base = filled($maintenanceTypeId)
             ? (float) (MaintenanceType::query()->find($maintenanceTypeId)?->price ?? 0)
@@ -476,8 +578,11 @@ class WorkOrderResource extends Resource
         $activitiesTotal = collect(is_array($activities) ? $activities : [])
             ->filter(fn (array $activity): bool => (bool) ($activity['is_billable'] ?? true))
             ->sum(fn (array $activity): float => (float) ($activity['service_cost'] ?? 0));
+        $productsTotal = collect(is_array($products) ? $products : [])
+            ->filter(fn (array $product): bool => (bool) ($product['is_billable'] ?? true))
+            ->sum(fn (array $product): float => (float) ($product['quantity'] ?? 0) * (float) ($product['unit_price'] ?? 0));
 
-        return round($base + $activitiesTotal, 2);
+        return round($base + $activitiesTotal + $productsTotal, 2);
     }
 
     public static function getRelations(): array

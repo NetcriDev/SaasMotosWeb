@@ -25,6 +25,15 @@ final class ShieldBootstrap
     public static function ensureDefaultTeamRoles(Team $team): void
     {
         TenancyPermissions::withTeam($team, function () use ($team): void {
+            self::ensurePermissionNames([
+                'ViewAny:InventoryProduct',
+                'View:InventoryProduct',
+                'Create:InventoryProduct',
+                'Update:InventoryProduct',
+                'Delete:InventoryProduct',
+                'DeleteAny:InventoryProduct',
+            ]);
+
             self::role($team, TeamRole::Supervisor->value)
                 ->syncPermissions(Permission::query()->pluck('id'));
 
@@ -46,6 +55,10 @@ final class ShieldBootstrap
                     'Update:Motorcycle',
                     'ViewAny:MotorcycleModel',
                     'View:MotorcycleModel',
+                    'ViewAny:InventoryProduct',
+                    'View:InventoryProduct',
+                    'Create:InventoryProduct',
+                    'Update:InventoryProduct',
                     'ViewAny:WorkOrder',
                     'View:WorkOrder',
                     'Create:WorkOrder',
@@ -66,6 +79,8 @@ final class ShieldBootstrap
                     'View:Motorcycle',
                     'ViewAny:MotorcycleModel',
                     'View:MotorcycleModel',
+                    'ViewAny:InventoryProduct',
+                    'View:InventoryProduct',
                     'ViewAny:WorkOrder',
                     'View:WorkOrder',
                     'Create:WorkOrder',
@@ -110,5 +125,18 @@ final class ShieldBootstrap
         return Permission::query()
             ->whereIn('name', $names)
             ->get();
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private static function ensurePermissionNames(array $names): void
+    {
+        foreach ($names as $name) {
+            Permission::query()->firstOrCreate([
+                'name' => $name,
+                'guard_name' => 'web',
+            ]);
+        }
     }
 }
