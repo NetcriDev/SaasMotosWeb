@@ -29,7 +29,7 @@ class DemoDataSeeder extends Seeder
         $admin = User::query()->updateOrCreate(
             ['email' => 'admin@taller.demo'],
             [
-                'name' => 'Administrador Demo',
+                'name' => 'Super Admin Software',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
             ],
@@ -39,10 +39,19 @@ class DemoDataSeeder extends Seeder
             ['name' => 'Taller Demo Motos'],
         );
 
-        $admin->teams()->syncWithoutDetaching([$team->id]);
-
         ShieldBootstrap::assignSystemSuperAdmin($admin);
-        ShieldBootstrap::assignSupervisor($admin, $team);
+
+        $supervisor = User::query()->updateOrCreate(
+            ['email' => 'supervisor@taller.demo'],
+            [
+                'name' => 'Supervisor Demo',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ],
+        );
+
+        $team->members()->syncWithoutDetaching([$supervisor->id]);
+        ShieldBootstrap::assignSupervisor($supervisor, $team);
 
         $receptionist = User::query()->updateOrCreate(
             ['email' => 'recepcion@taller.demo'],
@@ -69,7 +78,7 @@ class DemoDataSeeder extends Seeder
 
         $branches = $this->seedBranches($team);
         $this->assignTeamBranches($team, $branches, [
-            $admin->id => 'centro',
+            $supervisor->id => 'centro',
             $receptionist->id => 'centro',
             $mechanic->id => 'norte',
         ]);

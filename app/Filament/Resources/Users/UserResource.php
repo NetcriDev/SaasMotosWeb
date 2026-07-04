@@ -150,7 +150,9 @@ class UserResource extends Resource
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereHas('teams', fn (Builder $query): Builder => $query->whereKey($team->id));
+        return $query
+            ->where('is_system_admin', false)
+            ->whereHas('teams', fn (Builder $query): Builder => $query->whereKey($team->id));
     }
 
     public static function syncTeamRole(User $user, string $roleName): void
@@ -158,6 +160,10 @@ class UserResource extends Resource
         $team = Filament::getTenant();
 
         if (! $team instanceof Team) {
+            return;
+        }
+
+        if (! in_array($roleName, ShieldBootstrap::defaultTeamRoleNames(), true)) {
             return;
         }
 
@@ -210,7 +216,7 @@ class UserResource extends Resource
 
         return Role::query()
             ->where('team_id', $team->id)
-            ->whereIn('name', ['supervisor', 'recepcion', 'mecanico'])
+            ->whereIn('name', ShieldBootstrap::defaultTeamRoleNames())
             ->orderBy('name')
             ->pluck('name', 'name')
             ->map(fn (string $role): string => self::roleLabel($role))
@@ -283,11 +289,8 @@ class UserResource extends Resource
     {
         return match ($role) {
             'supervisor' => 'Supervisor',
-            'super_admin' => 'Super admin del sistema',
-            'admin' => 'Administrador',
             'recepcion' => 'Recepcionista',
             'mecanico' => 'Mecanico',
-            'panel_user' => 'Usuario del panel',
             default => $role,
         };
     }

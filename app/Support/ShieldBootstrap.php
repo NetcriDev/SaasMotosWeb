@@ -10,6 +10,20 @@ use App\Models\User;
 
 final class ShieldBootstrap
 {
+    /**
+     * Roles operativos de un taller. El super admin del sistema no es un rol de team.
+     *
+     * @return list<string>
+     */
+    public static function defaultTeamRoleNames(): array
+    {
+        return [
+            TeamRole::Supervisor->value,
+            TeamRole::Recepcion->value,
+            TeamRole::Mecanico->value,
+        ];
+    }
+
     public static function assignSupervisor(User $user, Team $team): void
     {
         self::ensureDefaultTeamRoles($team);
@@ -17,6 +31,9 @@ final class ShieldBootstrap
         TenancyPermissions::assignRole($user, TeamRole::Supervisor->value, $team);
     }
 
+    /**
+     * Alias histórico: el creador del taller es supervisor del team, no super admin del sistema.
+     */
     public static function assignSuperAdmin(User $user, Team $team): void
     {
         self::assignSupervisor($user, $team);
@@ -25,15 +42,7 @@ final class ShieldBootstrap
     public static function ensureDefaultTeamRoles(Team $team): void
     {
         TenancyPermissions::withTeam($team, function () use ($team): void {
-            self::ensurePermissionNames([
-                'ViewAny:InventoryProduct',
-                'View:InventoryProduct',
-                'Create:InventoryProduct',
-                'Update:InventoryProduct',
-                'Delete:InventoryProduct',
-                'DeleteAny:InventoryProduct',
-            ]);
-
+            // Supervisor recibe todos los permisos Spatie existentes (generados por shield:generate).
             self::role($team, TeamRole::Supervisor->value)
                 ->syncPermissions(Permission::query()->pluck('id'));
 
@@ -86,6 +95,8 @@ final class ShieldBootstrap
                     'Create:WorkOrder',
                     'Update:WorkOrder',
                 ]));
+
+            self::pruneSystemRolesFromTeam($team);
         });
     }
 
@@ -103,6 +114,45 @@ final class ShieldBootstrap
     {
         TenancyPermissions::withTeam($team, function () use ($team, $roleName): void {
             self::role($team, $roleName);
+        });
+    }
+
+    /**
+     * Quita roles de sistema/legado que no deben vivir dentro de un taller.
+     */
+    private static function pruneSystemRolesFromTeam(Team $team): void
+    {
+        $systemRoleNames = [
+            (string) config('filament-shield.super_admin.name', 'super_admin'),
+            (string) config('filament-shield.panel_user.name', 'panel_user'),
+            TeamRole::Owner->value,
+            TeamRole::Admin->value,
+        ];
+
+        Role::query()
+            ->where('team_id', $team->getKey())
+            ->whereIn('name', $systemRoleNames)
+            ->get()
+            ->each(function (Role $role) use ($team): void {
+                self::reassignUsersToSupervisor($team, $role);
+                $role->delete();
+            });
+    }
+
+    private static function reassignUsersToSupervisor(Team $team, Role $role): void
+    {
+        TenancyPermissions::withTeam($team, function () use ($role): void {
+            $supervisor = TeamRole::Supervisor->value;
+
+            User::query()
+                ->role($role->name)
+                ->each(function (User $user) use ($role, $supervisor): void {
+                    $user->removeRole($role->name);
+
+                    if (! $user->hasRole($supervisor)) {
+                        $user->assignRole($supervisor);
+                    }
+                });
         });
     }
 
@@ -125,18 +175,5 @@ final class ShieldBootstrap
         return Permission::query()
             ->whereIn('name', $names)
             ->get();
-    }
-
-    /**
-     * @param  list<string>  $names
-     */
-    private static function ensurePermissionNames(array $names): void
-    {
-        foreach ($names as $name) {
-            Permission::query()->firstOrCreate([
-                'name' => $name,
-                'guard_name' => 'web',
-            ]);
-        }
     }
 }

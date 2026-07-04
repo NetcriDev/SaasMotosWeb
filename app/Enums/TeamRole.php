@@ -42,9 +42,16 @@ enum TeamRole: string
      */
     public static function invitableOptions(): array
     {
-        return collect(self::cases())
-            ->reject(fn (self $role): bool => in_array($role, [self::Owner, self::Supervisor], true))
+        return collect([self::Recepcion, self::Mecanico])
             ->mapWithKeys(fn (self $role): array => [$role->value => $role->label()])
             ->all();
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function workspaceRoles(): array
+    {
+        return [self::Supervisor, self::Recepcion, self::Mecanico];
     }
 }
