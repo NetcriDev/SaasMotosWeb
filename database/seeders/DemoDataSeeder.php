@@ -8,6 +8,7 @@ use App\Enums\WorkOrderStatus;
 use App\Models\Branch;
 use App\Models\Brand;
 use App\Models\Client;
+use App\Models\InventoryProduct;
 use App\Models\MaintenanceType;
 use App\Models\Motorcycle;
 use App\Models\MotorcycleModel;
@@ -72,6 +73,7 @@ class DemoDataSeeder extends Seeder
             $receptionist->id => 'centro',
             $mechanic->id => 'norte',
         ]);
+        $this->seedInventory($team, $branches);
         $catalogs = $this->seedCatalogs($team);
         $clients = $this->seedClients($team, $branches);
         $motorcycles = $this->seedMotorcycles($team, $branches, $clients, $catalogs);
@@ -116,6 +118,62 @@ class DemoDataSeeder extends Seeder
             $team->members()->syncWithoutDetaching([
                 $userId => ['branch_id' => $branches[$branchKey]->id],
             ]);
+        }
+    }
+
+    /**
+     * @param  array{centro: Branch, norte: Branch}  $branches
+     */
+    private function seedInventory(Team $team, array $branches): void
+    {
+        $products = [
+            [
+                'sku' => 'ACE-10W40',
+                'name' => 'Aceite 10W40 1L',
+                'category' => 'Lubricantes',
+                'unit' => 'litro',
+                'sale_price' => 12.50,
+                'stock' => ['centro' => 20, 'norte' => 15],
+            ],
+            [
+                'sku' => 'FOCO-H4',
+                'name' => 'Foco delantero H4',
+                'category' => 'Electricos',
+                'unit' => 'unidad',
+                'sale_price' => 5.00,
+                'stock' => ['centro' => 12, 'norte' => 8],
+            ],
+            [
+                'sku' => 'PAST-FD',
+                'name' => 'Pastillas de freno delantero',
+                'category' => 'Frenos',
+                'unit' => 'juego',
+                'sale_price' => 28.00,
+                'stock' => ['centro' => 6, 'norte' => 4],
+            ],
+        ];
+
+        foreach ($products as $data) {
+            $product = InventoryProduct::query()->updateOrCreate(
+                ['team_id' => $team->id, 'sku' => $data['sku']],
+                [
+                    'name' => $data['name'],
+                    'category' => $data['category'],
+                    'unit' => $data['unit'],
+                    'sale_price' => $data['sale_price'],
+                    'is_active' => true,
+                ],
+            );
+
+            foreach ($data['stock'] as $branchKey => $quantity) {
+                $product->stocks()->updateOrCreate(
+                    ['branch_id' => $branches[$branchKey]->id],
+                    [
+                        'quantity' => $quantity,
+                        'min_quantity' => 2,
+                    ],
+                );
+            }
         }
     }
 

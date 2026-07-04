@@ -54,6 +54,11 @@ class Team extends Model
         return $this->hasMany(MaintenanceType::class);
     }
 
+    public function inventoryProducts()
+    {
+        return $this->hasMany(InventoryProduct::class);
+    }
+
     public function motorcycleSystems()
     {
         return $this->hasMany(MotorcycleSystem::class);
