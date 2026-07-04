@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Motorcycles;
 use App\Filament\Resources\Motorcycles\Pages\CreateMotorcycle;
 use App\Filament\Resources\Motorcycles\Pages\EditMotorcycle;
 use App\Filament\Resources\Motorcycles\Pages\ListMotorcycles;
+use App\Filament\Resources\Motorcycles\RelationManagers\WorkOrdersRelationManager;
 use App\Filament\Resources\Motorcycles\Tables\MotorcyclesTable;
 use App\Models\Motorcycle;
 use BackedEnum;
@@ -16,9 +17,9 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use UnitEnum;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class MotorcycleResource extends Resource
 {
@@ -117,7 +118,9 @@ class MotorcycleResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            WorkOrdersRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
