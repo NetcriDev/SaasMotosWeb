@@ -16,9 +16,9 @@ class TeamInvitationService
     {
         $email = strtolower(trim($email));
 
-        if ($role === TeamRole::Owner) {
+        if (! array_key_exists($role->value, TeamRole::invitableOptions())) {
             throw ValidationException::withMessages([
-                'role' => 'No puedes invitar con el rol de propietario.',
+                'role' => 'Solo puedes invitar con rol de recepcionista o mecanico.',
             ]);
         }
 

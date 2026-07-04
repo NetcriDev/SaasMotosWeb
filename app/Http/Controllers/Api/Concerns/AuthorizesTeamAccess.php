@@ -40,7 +40,7 @@ trait AuthorizesTeamAccess
      */
     protected function operationalRoles(): array
     {
-        return ['supervisor', 'admin', 'recepcion', 'recepcionista', 'mecanico'];
+        return ['supervisor', 'recepcion', 'mecanico'];
     }
 
     /**
@@ -48,6 +48,6 @@ trait AuthorizesTeamAccess
      */
     protected function supervisorRoles(): array
     {
-        return ['supervisor', 'admin'];
+        return ['supervisor'];
     }
 }

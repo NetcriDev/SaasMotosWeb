@@ -6,11 +6,19 @@ use App\Models\Team;
 use App\Support\DefaultWorkshopCatalog;
 use App\Support\ShieldBootstrap;
 use Filament\Forms\Components\TextInput;
+use Filament\Facades\Filament;
 use Filament\Pages\Tenancy\RegisterTenant;
 use Filament\Schemas\Schema;
 
 class RegisterTeam extends RegisterTenant
 {
+    public static function canView(): bool
+    {
+        $user = Filament::auth()->user();
+
+        return $user !== null && ShieldBootstrap::isSystemSuperAdmin($user);
+    }
+
     public static function getLabel(): string
     {
         return 'Registrar taller';
@@ -30,11 +38,7 @@ class RegisterTeam extends RegisterTenant
     {
         $team = Team::create($data);
 
-        $user = auth()->user();
-
-        $team->members()->attach($user);
-
-        ShieldBootstrap::assignSupervisor($user, $team);
+        ShieldBootstrap::ensureDefaultTeamRoles($team);
         DefaultWorkshopCatalog::ensureForTeam($team);
 
         return $team;

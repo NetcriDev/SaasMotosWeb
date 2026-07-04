@@ -40,6 +40,10 @@ class User extends Authenticatable implements FilamentUser, HasTenants
 
     public function getTenants(Panel $panel): array|Collection
     {
+        if (ShieldBootstrap::isSystemSuperAdmin($this)) {
+            return Team::query()->orderBy('name')->get();
+        }
+
         return $this->teams;
     }
 
@@ -52,6 +56,10 @@ class User extends Authenticatable implements FilamentUser, HasTenants
 
     public function canAccessTenant(Model $tenant): bool
     {
+        if (ShieldBootstrap::isSystemSuperAdmin($this)) {
+            return $tenant instanceof Team;
+        }
+
         return $this->teams->contains($tenant);
     }
 
